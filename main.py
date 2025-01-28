@@ -1,16 +1,28 @@
-# This is a sample Python script.
+import discord
+from discord.ext import commands
+from config import BOT_TOKEN  # Import the token from config.py
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+# Create a bot instance
+intents = discord.Intents.default()
+intents.messages = True
+intents.message_content = True  # Privileged intent
+intents.members = True  # Required for the on_member_join event
+bot = commands.Bot(command_prefix='!', intents=intents)
 
+# Event: When the bot is ready
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user}!')
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+# Command: !hello
+@bot.command()
+async def hello(ctx):
+    await ctx.send(f'Hello, {ctx.author.mention}!')
 
+# Command: !ping
+@bot.command()
+async def ping(ctx):
+    await ctx.send('Pong!')
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+# Run the bot
+bot.run(BOT_TOKEN)
