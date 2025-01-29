@@ -8,7 +8,6 @@ intents = discord.Intents.default()
 intents.members = True  
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-
 # Configuration
 TEMP_ROLE_NAME = "None" 
 VERIFIED_ROLE_NAME = "Verified"
