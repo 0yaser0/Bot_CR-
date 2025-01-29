@@ -7,7 +7,7 @@ import asyncio
 intents = discord.Intents.default()
 intents.members = True  
 bot = commands.Bot(command_prefix="!", intents=intents)
-BOT_TOKEN = 'MTMzMzYwNzIwMDYxODQ1MTAzNA.Gi5lPc._62UkoXBNVclJyI1FgGssu0PB1dN0-oAezbPU0'
+
 
 # Configuration
 TEMP_ROLE_NAME = "None" 
@@ -88,4 +88,4 @@ async def permission_error(ctx, error):
         raise error
 
 
-bot.run(BOT_TOKEN)
+bot.run("MTMzMzYwNzIwMDYxODQ1MTAzNA.Gi5lPc._62UkoXBNVclJyI1FgGssu0PB1dN0-oAezbPU0")
