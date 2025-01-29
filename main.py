@@ -4,7 +4,6 @@ from config import BOT_TOKEN  # Import the token from config.py
 
 # Create a bot instance
 intents = discord.Intents.default()
-intents.messages = True
 intents.message_content = True  # Privileged intent
 intents.members = True  # Required for the on_member_join event
 bot = commands.Bot(command_prefix='!', intents=intents)
@@ -24,5 +23,15 @@ async def hello(ctx):
 async def ping(ctx):
     await ctx.send('Pong!')
 
+# Load the welcome cog
+async def load_extensions():
+    await bot.load_extension('cogs.Welcome')
+    await bot.load_extension('cogs.GoodBye')
+
+async def main():
+    await load_extensions()
+    await bot.start(BOT_TOKEN)
+
 # Run the bot
-bot.run(BOT_TOKEN)
+import asyncio
+asyncio.run(main())
