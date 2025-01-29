@@ -16,6 +16,9 @@ VERIFIED_ROLE_NAME = "「📗」Verified"
 VERIFICATION_CHANNEL = "•📑•-verification"
 UNVERIFIED_TIMEOUT = 86400  # 24 hours in seconds
 
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user}!')
 
 class VerificationView(View):
     def __init__(self, member, ctx):
