@@ -88,4 +88,8 @@ async def permission_error(ctx, error):
     else:
         raise error
 
+<<<<<<< HEAD
 bot.run(BOT_TOKEN)
+=======
+bot.run(BOT_TOKEN )
+>>>>>>> ac789d23bb6e61b514edf8002696883d30ec9322
