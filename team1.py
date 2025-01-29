@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands, tasks
 from discord.utils import get
 import asyncio
+from config import Token_Key
 
 # Intents and bot setup
 intents = discord.Intents.default()
@@ -87,4 +88,4 @@ async def permission_error(ctx, error):
         raise error
 
 
-bot.run("MTMzMzYwNzIwMDYxODQ1MTAzNA.Gi5lPc._62UkoXBNVclJyI1FgGssu0PB1dN0-oAezbPU0")
+bot.run(Token_Key)
