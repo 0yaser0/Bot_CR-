@@ -1,18 +1,18 @@
 import discord
-from discord.ext import commands, tasks
-from discord.utils import get
+from discord.ext import commands
 import asyncio
 from config import BOT_TOKEN
 
 # Intents and bot setup
 intents = discord.Intents.default()
-intents.members = True  
+intents.members = True
+intents.message_content = True  # Privileged intent
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Configuration
-TEMP_ROLE_NAME = "None" 
-VERIFIED_ROLE_NAME = "Verified"
-VERIFICATION_CHANNEL = "verification" 
+TEMP_ROLE_NAME = "⛔ | None"
+VERIFIED_ROLE_NAME = "「📗」Verified"
+VERIFICATION_CHANNEL = "•📑•-verification"
 UNVERIFIED_TIMEOUT = 86400  
 
 
