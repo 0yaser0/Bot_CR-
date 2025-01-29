@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from discord.ui import Button, View
 import asyncio
 from config import BOT_TOKEN
 
@@ -13,12 +14,40 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 TEMP_ROLE_NAME = "⛔ | None"
 VERIFIED_ROLE_NAME = "「📗」Verified"
 VERIFICATION_CHANNEL = "•📑•-verification"
-UNVERIFIED_TIMEOUT = 86400  
+UNVERIFIED_TIMEOUT = 86400  # 24 hours in seconds
 
 
-@bot.event
-async def on_ready():
-    print(f"Bot is online as {bot.user}")
+class VerificationView(View):
+    def __init__(self, member, ctx):
+        super().__init__()
+        self.member = member  # The member who joined the server
+        self.ctx = ctx  # The context for sending messages
+
+    @discord.ui.button(label="Accept", style=discord.ButtonStyle.green)
+    async def accept_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+        """Action for the Accept button"""
+        temp_role = discord.utils.get(self.ctx.guild.roles, name=TEMP_ROLE_NAME)
+        verified_role = discord.utils.get(self.ctx.guild.roles, name=VERIFIED_ROLE_NAME)
+
+        if temp_role in self.member.roles:
+            await self.member.remove_roles(temp_role)
+            await self.member.add_roles(verified_role)
+            await interaction.response.send_message(f"✅ {self.member.mention} has been verified!")
+            print(f"Verified {self.member.name}")
+        else:
+            await interaction.response.send_message(f"{self.member.mention} is already verified or does not need verification.")
+
+    @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
+    async def decline_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+        """Action for the Decline button"""
+        temp_role = discord.utils.get(self.ctx.guild.roles, name=TEMP_ROLE_NAME)
+
+        if temp_role in self.member.roles:
+            await self.member.kick(reason="Verification rejected")
+            await interaction.response.send_message(f"❌ {self.member.name} has been rejected and removed from the server.")
+            print(f"Rejected {self.member.name}")
+        else:
+            await interaction.response.send_message(f"{self.member.mention} does not have the temporary role or is already verified.")
 
 
 @bot.event
@@ -30,9 +59,13 @@ async def on_member_join(member):
 
         channel = discord.utils.get(member.guild.channels, name=VERIFICATION_CHANNEL)
         if channel:
-            await channel.send(
+            verification_message = await channel.send(
                 f"👋 Welcome {member.mention}! Please wait for a moderator to verify you."
             )
+
+            # Create buttons for verification
+            view = VerificationView(member, channel)
+            await verification_message.edit(view=view)
 
         await asyncio.sleep(UNVERIFIED_TIMEOUT)
 
