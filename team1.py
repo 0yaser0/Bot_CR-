@@ -18,6 +18,9 @@ CANCEL_EMOJI = "❌"
 
 bot.verification_messages = {}  # Store verification message IDs
 
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user}!')
 
 @bot.event
 async def on_ready():
