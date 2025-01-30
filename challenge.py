@@ -1,64 +1,68 @@
 import discord
-from discord.ext import commands, tasks
-from config import BOT_TOKEN
 import random
-import asyncio
+from discord.ext import commands, tasks
+from config import BOT_TOKEN  # Make sure you have a config.py file with BOT_TOKEN
 
+# Set up intents
 intents = discord.Intents.default()
-intents.members = True  # Enable member intents
+intents.messages = True
+intents.message_content = True  # Required for message tracking
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+# Create bot with the prefix '!'
+Bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Dictionary to store daily challenges
-challenges = {}
+# List of daily challenges
+challenges = [
+    "Write a short story using only emojis 😍!",
+    "Send a meme related to gaming 🎮!",
+    "Compliment another member in the server 🤝!",
+    "Share your favorite motivational quote 📜!",
+    "Post a fun fact about history 🎭!",
+    "Use an ASCII art generator and share the result 🎨!"
+]
 
-def get_server_stats(guild):
-    total_members = guild.member_count
-    online_members = sum(1 for member in guild.members if member.status != discord.Status.offline)
-    total_channels = len(guild.channels)
-    total_roles = len(guild.roles)
-    return total_members, online_members, total_channels, total_roles
+# XP tracking dictionary
+chanell_id = 0
+xp = {}
+challenge_message_id = None  # Store the message ID of the daily challenge
+challenge_channel_id = chanell_id  # Replace with your actual challenge channel ID
 
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user}')
-    daily_challenge.start()
+# Function to get a random challenge
+def get_daily_challenge():
+    return random.choice(challenges)
 
-@bot.command()
-async def serverstats(ctx):
-    guild = ctx.guild
-    total_members, online_members, total_channels, total_roles = get_server_stats(guild)
-
-    embed = discord.Embed(title=f"Server Stats - {guild.name}", color=discord.Color.blue())
-    embed.add_field(name="Total Members", value=total_members, inline=False)
-    embed.add_field(name="Online Members", value=online_members, inline=False)
-    embed.add_field(name="Total Channels", value=total_channels, inline=False)
-    embed.add_field(name="Total Roles", value=total_roles, inline=False)
-
-    await ctx.send(embed=embed)
-
+# Task to post a daily challenge every 24 hours
 @tasks.loop(hours=24)
-async def daily_challenge():
-    global challenges
-    challenge_list = [
-        "Send a positive message in the chat!",
-        "Help a new member with a question!",
-        "Share your favorite song in the music channel!",
-        "Post a funny meme in the meme channel!"
-    ]
-    challenge = random.choice(challenge_list)
-    challenges["current"] = challenge
+async def post_daily_challenge():
+    global challenge_message_id
+    channel = Bot.get_channel(challenge_channel_id)
+    if channel:
+        challenge = get_daily_challenge()
+        message = await channel.send(f"🌟 *Daily Challenge:* {challenge}\nReply to this message to complete it!")
+        challenge_message_id = message.id  # Store the message ID
 
-    for guild in bot.guilds:
-        channel = discord.utils.get(guild.text_channels, name="general")
-        if channel:
-            await channel.send(f"Today's Daily Challenge: {challenge}")
+# Event: When bot is ready
+@Bot.event
+async def on_ready():
+    print(f'✅ Logged in as {Bot.user}')
+    post_daily_challenge.start()
 
-@bot.command()
-async def challenge(ctx):
-    if "current" in challenges:
-        await ctx.send(f"Today's challenge: {challenges['current']}")
-    else:
-        await ctx.send("No challenge set yet!")
+# Event: Handling messages
+@Bot.event
+async def on_message(message):
+    global challenge_message_id
 
-bot.run("BOT_TOKEN")
+    if message.author == Bot.user:
+        return
+
+    # Check if the message is a reply to the challenge message
+    if message.channel.id == challenge_channel_id and message.reference:
+        if message.reference.message_id == challenge_message_id:
+            user = message.author
+            xp[user.id] = xp.get(user.id, 0) + 10  # Award 10 XP
+            await message.channel.send(f'🎉 {user.mention}, you completed today\'s challenge! You earned *10 XP! You now have **{xp[user.id]} XP*!')
+
+    await Bot.process_commands(message)
+
+# Run the bot
+Bot.run(BOT_TOKEN)
