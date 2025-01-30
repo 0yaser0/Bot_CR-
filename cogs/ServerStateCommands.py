@@ -13,11 +13,10 @@ intents.voice_states = True  # Required to track voice state updates
 # Bot instance
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Dictionary to track individual user join times
-voice_time_tracker = {}
-
-# Variable to store total voice time
+# Variables to track data
+voice_time_tracker = {}  # {user_id: join_time}
 total_voice_time = 0
+message_count = 0  # Total message count
 
 # Bot is ready
 @bot.event
@@ -40,6 +39,18 @@ async def on_voice_state_update(member, before, after):
         time_spent = (datetime.now() - join_time).total_seconds()
         total_voice_time += time_spent
         print(f"{member.name} left {before.channel.name} after {time_spent:.2f} seconds")
+
+# Track messages
+@bot.event
+async def on_message(message):
+    global message_count
+
+    # Ignore messages from bots and DMs
+    if not message.author.bot and message.guild:
+        message_count += 1
+
+    # Process commands
+    await bot.process_commands(message)
 
 # Command: Total voice time in the server
 @bot.command()
@@ -79,6 +90,19 @@ async def current_voice_time(ctx):
     seconds = int(total_time % 60)
 
     await ctx.send(f"Total time spent in {voice_channel.name} so far: {hours} hours, {minutes} minutes, {seconds} seconds")
+
+# Command: Total messages in the server
+@bot.command()
+async def total_messages(ctx):
+    global message_count
+    await ctx.send(f"Total messages sent in the server: {message_count}")
+
+# Command: Number of online members
+@bot.command()
+async def online_members(ctx):
+    guild = ctx.guild
+    online_members = sum(1 for member in guild.members if member.status != discord.Status.offline)
+    await ctx.send(f"Number of online members: {online_members}")
 
 # Run bot
 bot.run(BOT_TOKEN)
