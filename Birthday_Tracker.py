@@ -1,93 +1,107 @@
 import discord
 from discord.ext import commands, tasks
-from datetime import datetime
 import json
+from datetime import datetime
+import pytz
+from dateutil import parser
 from config import BOT_TOKEN
 
+# Set the timezone (e.g., Morocco)
+tz = pytz.timezone("Africa/Casablanca")
 
+# Load and save birthdays
 def load_birthdays():
     try:
         with open("birthdays.json", "r") as f:
             return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        with open("birthdays.json", "w") as f:
-            json.dump({}, f)  # Ensure the file exists
         return {}
 
-def save_birthdays(birthDays):
+def save_birthdays(birthdays):
     with open("birthdays.json", "w") as f:
-        json.dump(birthDays, f, indent=4)
+        json.dump(birthdays, f, indent=4)
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 birthdays = load_birthdays()
 
-CHANNEL_ID = 1333167210750939266  # Replace with your actual channel ID
+# 🎂 Birthday Modal
+class BirthdayModal(discord.ui.Modal, title="Enter Your Birthday"):
+    date = discord.ui.TextInput(label="Enter your birthdate (any format)", placeholder="e.g., 2004-12-25 or 25/12/2004")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        user_id = str(interaction.user.id)
+        birthdate_input = self.date.value.strip()
+
+        try:
+            # Auto-detect and normalize date format
+            parsed_date = parser.parse(birthdate_input, dayfirst=False)  # Converts any format
+            formatted_birthday = parsed_date.strftime("%Y-%m-%d")  # Ensure YYYY-MM-DD format
+
+            birthdays[user_id] = {
+                "username": interaction.user.name,
+                "birthday": formatted_birthday
+            }
+            save_birthdays(birthdays)
+
+            await interaction.response.send_message(f"🎉 Your birthday has been saved: {formatted_birthday}", ephemeral=True)
+        except (ValueError, OverflowError):
+            await interaction.response.send_message("⚠️ Invalid date! Try again (e.g., 2004-12-25).", ephemeral=True)
+
+# 🎉 Button to Open Modal
+class BirthdayButton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.birthday_button = discord.ui.Button(label="Set Your Birthday 🎂", style=discord.ButtonStyle.primary, custom_id="birthday_button")
+        self.birthday_button.callback = self.birthday_button_callback  # Link button to function
+        self.add_item(self.birthday_button)  # Add button to view
+
+    async def birthday_button_callback(self, interaction: discord.Interaction):
+        await interaction.response.send_modal(BirthdayModal())  # Open modal
+
+@bot.event
+async def on_member_join(member):
+    """Send a DM with a button to open the birthday modal when a user joins."""
+    try:
+        view = BirthdayButton()
+        await member.send("🎉 Welcome! Click the button below to set your birthday:", view=view)
+    except discord.Forbidden:
+        print(f"❌ Cannot send message to {member} (DMs are closed)")
+
+# 🎉 Check Birthdays Daily
+@tasks.loop(hours=24)
+async def check_birthdays():
+    await bot.wait_until_ready()  # Ensure bot is ready before running
+    today = datetime.now(tz).strftime("%m-%d")
+
+    print(f"📅 Checking birthdays for today: {today}")
+    print(f"📂 Loaded Birthdays: {birthdays}")
+
+    channel_id = None
+    for guild in bot.guilds:
+        channel = discord.utils.get(guild.text_channels, name="⦿announcements⦿")
+        if channel:
+            channel_id = channel.id
+            print(f"✅ Found channel: {channel.name} in guild: {guild.name}")
+            break
+
+    if channel_id:
+        channel = bot.get_channel(channel_id)
+        if channel:
+            for user_id, info in birthdays.items():
+                user_birthday = info["birthday"]
+                if datetime.strptime(user_birthday, "%Y-%m-%d").strftime("%m-%d") == today:
+                    print(f"🎉 Sending birthday message for {info['username']}")
+                    await channel.send(f"🎉 Happy Birthday to {info['username']}! 🎂🎈")
+        else:
+            print("⚠️ Channel ID found, but bot cannot access the channel.")
+    else:
+        print("⚠️ No valid announcement channel found.")
 
 @bot.event
 async def on_ready():
-    channel = bot.get_channel(CHANNEL_ID)
-    if channel:
-        print(f'✅ Bot is ready! Announcements will be sent to: {channel.name}')
-    else:
-        print("⚠️ ERROR: Could not find the channel! Check the CHANNEL_ID and bot permissions.")
-
-    if not check_birthdays.is_running():
-        check_birthdays.start()
-
-@bot.command()
-async def add_birthday(ctx, user: discord.Member, date: str):
-    """Command to add a user's birthday in YYYY-MM-DD format"""
-    if str(user.id) in birthdays:
-        await ctx.send(f"{user.mention} already has a birthday set on {birthdays[str(user.id)]}!")
-        return
-
-    try:
-        datetime.strptime(date, "%Y-%m-%d")  # Validate date format
-        birthdays[str(user.id)] = date
-        save_birthdays(birthdays)
-        await ctx.send(f'🎉 Birthday for {user.mention} added: {date}')
-    except ValueError:
-        await ctx.send("⚠️ Invalid date format! Use YYYY-MM-DD.")
-
-@bot.command()
-async def list_birthdays(ctx):
-    """Lists all stored birthdays."""
-    if not birthdays:
-        await ctx.send("No birthdays have been set yet!")
-        return
-
-    message = "🎂 Stored Birthdays:\n"
-    for user_id, date in birthdays.items():
-        try:
-            user = await bot.fetch_user(int(user_id))
-            message += f"{user.name}: {date}\n"
-        except discord.NotFound:
-            message += f"User {user_id}: {date} (User not found)\n"
-
-    await ctx.send(message)
-
-@tasks.loop(hours=24)
-async def check_birthdays():
-    """Checks if today matches any stored birthdays and sends a message."""
-    from datetime import UTC  # Import UTC for timezone handling
-    today = datetime.now(UTC).strftime("%Y-%m-%d")  # Timezone-aware datetime
-
-    channel = bot.get_channel(CHANNEL_ID)
-    if not channel:
-        print("⚠️ ERROR: Channel not found! Check permissions or CHANNEL_ID.")
-        return
-
-    for user_id, bday in birthdays.items():
-        if bday == today:
-            try:
-                user = await bot.fetch_user(int(user_id))
-                await channel.send(f"🎉 Happy Birthday {user.mention}! 🎂")
-            except discord.NotFound:
-                print(f"User {user_id} not found, skipping.")
-            except discord.HTTPException:
-                print("Failed to fetch user due to API error.")
-
+    print(f"✅ {bot.user} is online and ready!")
+    check_birthdays.start()
 
 if not BOT_TOKEN:
     print("⚠️ ERROR: Bot token is missing!")
