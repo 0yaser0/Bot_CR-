@@ -9,6 +9,7 @@ from config import BOT_TOKEN
 # Set the timezone (e.g., Morocco)
 tz = pytz.timezone("Africa/Casablanca")
 
+
 # Load and save birthdays
 def load_birthdays():
     try:
@@ -17,17 +18,20 @@ def load_birthdays():
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
 
+
 def save_birthdays(birthdays):
     with open("birthdays.json", "w") as f:
         json.dump(birthdays, f, indent=4)
+
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 birthdays = load_birthdays()
 
+
 # 🎂 Birthday Modal
 class BirthdayModal(discord.ui.Modal, title="Enter Your Birthday"):
-    date = discord.ui.TextInput(label="Enter your birthdate (any format)", placeholder="e.g., 2004-12-25 or 25/12/2004")
+    date = discord.ui.TextInput(label="Enter your birthdate", placeholder="e.g., 2004-12-25")
 
     async def on_submit(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
@@ -44,20 +48,24 @@ class BirthdayModal(discord.ui.Modal, title="Enter Your Birthday"):
             }
             save_birthdays(birthdays)
 
-            await interaction.response.send_message(f"🎉 Your birthday has been saved: {formatted_birthday}", ephemeral=True)
+            await interaction.response.send_message(f"🎉 Your birthday has been saved: {formatted_birthday}",
+                                                    ephemeral=True)
         except (ValueError, OverflowError):
             await interaction.response.send_message("⚠️ Invalid date! Try again (e.g., 2004-12-25).", ephemeral=True)
+
 
 # 🎉 Button to Open Modal
 class BirthdayButton(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
-        self.birthday_button = discord.ui.Button(label="Set Your Birthday 🎂", style=discord.ButtonStyle.primary, custom_id="birthday_button")
+        self.birthday_button = discord.ui.Button(label="Set Your Birthday 🎂", style=discord.ButtonStyle.primary,
+                                                 custom_id="birthday_button")
         self.birthday_button.callback = self.birthday_button_callback  # Link button to function
         self.add_item(self.birthday_button)  # Add button to view
 
     async def birthday_button_callback(self, interaction: discord.Interaction):
         await interaction.response.send_modal(BirthdayModal())  # Open modal
+
 
 @bot.event
 async def on_member_join(member):
@@ -67,6 +75,9 @@ async def on_member_join(member):
         await member.send("🎉 Welcome! Click the button below to set your birthday:", view=view)
     except discord.Forbidden:
         print(f"❌ Cannot send message to {member} (DMs are closed)")
+        channel = discord.utils.get(member.guild.text_channels, name="🤖bot-development")
+        if channel:
+            await channel.send(f"❌ Cannot send message to {member} (DMs are closed)")
 
 # 🎉 Check Birthdays Daily
 @tasks.loop(hours=24)
@@ -98,10 +109,12 @@ async def check_birthdays():
     else:
         print("⚠️ No valid announcement channel found.")
 
+
 @bot.event
 async def on_ready():
     print(f"✅ {bot.user} is online and ready!")
     check_birthdays.start()
+
 
 if not BOT_TOKEN:
     print("⚠️ ERROR: Bot token is missing!")
