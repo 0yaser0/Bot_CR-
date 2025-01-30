@@ -22,9 +22,10 @@ challenges = [
 ]
 
 # XP tracking dictionary
+chenell_id = 0
 xp = {}
 challenge_message_id = None  # Store the message ID of the daily challenge
-challenge_channel_id = 123456789012345678  # Replace with your actual challenge channel ID
+challenge_channel_id = chenell_id  # Replace with your actual challenge channel ID
 
 # Function to get a random challenge
 def get_daily_challenge():
