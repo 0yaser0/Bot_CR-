@@ -34,6 +34,8 @@ async def load_extensions():
     await bot.load_extension('Cogs.TotalMessagesState')
     await bot.load_extension('Cogs.MembersState')
     await bot.load_extension('Cogs.DashBoard')
+    await bot.load_extension('Cogs.Verification')
+    await bot.load_extension('Cogs.BirthdayTracker')
     await bot.load_extension('Op_Commands.DeleteMessages')
 
 async def main():
