@@ -25,8 +25,12 @@ async def ping(ctx):
 
 # Load the welcome cog
 async def load_extensions():
-    await bot.load_extension('cogs.Welcome')
-    await bot.load_extension('cogs.GoodBye')
+    await bot.load_extension('Cogs.Welcome')
+    await bot.load_extension('Cogs.GoodBye')
+    await bot.load_extension('Cogs.VoiceTimeState')
+    await bot.load_extension('Cogs.TotalMessagesState')
+    await bot.load_extension('Cogs.MembersState')
+    await bot.load_extension('Op_Commands.DeleteMessages')
 
 async def main():
     await load_extensions()
