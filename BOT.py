@@ -5,7 +5,10 @@ from config import BOT_TOKEN  # Import the token from config.py
 # Create a bot instance
 intents = discord.Intents.default()
 intents.message_content = True  # Privileged intent
+intents.presences = True  # Track online status
 intents.members = True  # Required for the on_member_join event
+intents.voice_states = True  # Track voice state changes
+
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Event: When the bot is ready
@@ -30,6 +33,7 @@ async def load_extensions():
     await bot.load_extension('Cogs.VoiceTimeState')
     await bot.load_extension('Cogs.TotalMessagesState')
     await bot.load_extension('Cogs.MembersState')
+    await bot.load_extension('Cogs.DashBoard')
     await bot.load_extension('Op_Commands.DeleteMessages')
 
 async def main():
