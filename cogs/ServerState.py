@@ -1,105 +1,131 @@
 import discord
-from discord.ext import tasks
+from discord.ext import commands, tasks
 from config import BOT_TOKEN
-import datetime
+import time
 
-# Enable intents
+# ✅ Enable intents for members, presence, message content, and voice states
 intents = discord.Intents.default()
-intents.members = True
-intents.message_content = True
-intents.presences = True
-intents.voice_states = True  # Required to track voice state updates
+intents.members = True  # Track members
+intents.presences = True  # Track online status
+intents.message_content = True  # Track messages
+intents.voice_states = True  # Track voice state changes
 
-# Bot instance (using discord.Client instead of commands.Bot)
-bot = discord.Client(intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Channel IDs (replace with your actual channel IDs)
-TOTAL_MEMBERS_CHANNEL_ID = 1334202426026364979
-ONLINE_MEMBERS_CHANNEL_ID = 1334202931788120125
-MESSAGES_CHANNEL_ID = 1334203213481512980
-VOICE_TIME_CHANNEL_ID = 1334203377013362799
+dashboard_message = None  # Store the dashboard message
+user_voice_times = {}  # Store voice time for users in seconds
 
-# Variables to track messages and voice time
-message_count = 0
-voice_time_tracker = {}  # {user_id: total_seconds}
 
-@tasks.loop(minutes=5)  # Update the channels every 5 minutes (reduced frequency to avoid rate limits)
-async def update_channels():
-    print("Running update_channels...")  # Debugging: Check if the loop is running
-    guild = bot.get_guild(1333113498594574506)  # Replace with your guild ID
-
-    if not guild:
-        print("Guild not found!")  # Debugging: Check if the guild is found
-        return
-
-    # Get the channels by their IDs
-    total_members_channel = guild.get_channel(TOTAL_MEMBERS_CHANNEL_ID)
-    online_members_channel = guild.get_channel(ONLINE_MEMBERS_CHANNEL_ID)
-    messages_channel = guild.get_channel(MESSAGES_CHANNEL_ID)
-    voice_time_channel = guild.get_channel(VOICE_TIME_CHANNEL_ID)
-
-    try:
-        # Update the total members channel
-        if total_members_channel:
-            total_members = len(guild.members)
-            print(f"Updating total members: {total_members}")  # Debugging
-            await total_members_channel.edit(name=f"Total Members: {total_members}")
-
-        # Update the online members channel
-        if online_members_channel:
-            online_members = len([member for member in guild.members if member.status != discord.Status.offline])
-            print(f"Updating online members: {online_members}")  # Debugging
-            await online_members_channel.edit(name=f"Online: {online_members}")
-
-        # Update the messages channel
-        if messages_channel:
-            print(f"Updating messages: {message_count}")  # Debugging
-            await messages_channel.edit(name=f"Msgs Last 7 Days: {message_count}")
-
-        # Update the voice time channel
-        if voice_time_channel:
-            total_voice_time = sum(voice_time_tracker.values())  # Total voice time in seconds
-            hours, remainder = divmod(total_voice_time, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            voice_time_str = f"{hours}h{minutes}m{seconds}s"  # Format as "1h30m5s"
-            print(f"Updating voice time: {voice_time_str}")  # Debugging
-            await voice_time_channel.edit(name=f"Voice Time: {voice_time_str}")
-
-    except discord.HTTPException as e:
-        print(f"Failed to update channels: {e}")  # Debugging: Log rate limit errors
-
-# Track messages
-@bot.event
-async def on_message(message):
-    global message_count
-    if message.guild and not message.author.bot:  # Ignore DMs and bot messages
-        message_count += 1
-
-# Track voice time
-@bot.event
-async def on_voice_state_update(member, before, after):
-    if member.bot:  # Ignore bots
-        return
-
-    user_id = member.id
-    now = datetime.datetime.now(datetime.UTC)  # Use timezone-aware datetime
-
-    # User joined a voice channel
-    if before.channel is None and after.channel is not None:
-        voice_time_tracker[user_id] = now.timestamp()  # Track when they joined
-
-    # User left a voice channel
-    elif before.channel is not None and after.channel is None:
-        if user_id in voice_time_tracker:
-            join_time = voice_time_tracker[user_id]
-            time_spent = now.timestamp() - join_time
-            voice_time_tracker[user_id] = time_spent  # Update total time spent
-
-# Start the task when the bot is ready
 @bot.event
 async def on_ready():
-    print(f'Logged in as {bot.user}')
-    if not update_channels.is_running():  # Ensure the loop isn't already running
-        update_channels.start()
+    print(f'✅ Logged in as {bot.user}')
+    await setup_dashboard()
+    update_server_stats.start()  # Start updating stats
+
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+    """Track time spent in voice channels."""
+    global user_voice_times
+
+    current_time = time.time()
+
+    # User joins a voice channel
+    if before.channel is None and after.channel is not None:
+        user_voice_times[member.id] = {"join_time": current_time,
+                                       "total_time": user_voice_times.get(member.id, {}).get("total_time", 0)}
+
+    # User leaves a voice channel
+    elif before.channel is not None and after.channel is None:
+        if member.id in user_voice_times and "join_time" in user_voice_times[member.id]:
+            join_time = user_voice_times[member.id]["join_time"]
+            total_time = user_voice_times[member.id].get("total_time", 0)
+            user_voice_times[member.id]["total_time"] = total_time + (current_time - join_time)
+            del user_voice_times[member.id]["join_time"]
+
+    # User switches voice channels
+    elif before.channel != after.channel:
+        if member.id in user_voice_times and "join_time" in user_voice_times[member.id]:
+            join_time = user_voice_times[member.id]["join_time"]
+            total_time = user_voice_times[member.id].get("total_time", 0)
+            user_voice_times[member.id]["total_time"] = total_time + (current_time - join_time)
+            user_voice_times[member.id]["join_time"] = current_time
+
+
+async def setup_dashboard():
+    """Find the dashboard channel and send an initial message."""
+    global dashboard_message
+
+    for guild in bot.guilds:
+        channel = discord.utils.get(guild.text_channels, name="⦿dashboard⦿")
+        if channel:
+            async for msg in channel.history(limit=10):  # Check if message exists
+                if msg.author == bot.user:
+                    dashboard_message = msg
+                    break
+
+            if dashboard_message is None:
+                embed = await create_dashboard_embed()
+                dashboard_message = await channel.send(embed=embed)
+
+
+async def count_total_messages():
+    """Counts the total messages in all text channels."""
+    total_messages = 0
+    guild = bot.guilds[0]  # Get the first guild
+
+    for channel in guild.text_channels:
+        try:
+            async for message in channel.history(limit=None):  # Async iteration over history
+                total_messages += 1  # Count each message
+        except discord.Forbidden:
+            continue  # Skip channels the bot doesn't have permission to read
+
+    return total_messages
+
+
+async def count_total_voice_time():
+    """Counts the total voice time spent in all voice channels and converts to hours, minutes, seconds."""
+    total_seconds = sum(user_data.get("total_time", 0) for user_data in user_voice_times.values())
+
+    hours = int(total_seconds // 3600)  # Convert to integer
+    minutes = int((total_seconds % 3600) // 60)  # Convert to integer
+    seconds = int(total_seconds % 60)  # Convert to integer
+
+    # Format with leading zeros
+    return f"{hours:02d}h {minutes:02d}m {seconds:02d}s"
+
+
+async def update_dashboard():
+    """Update the dashboard message with latest stats."""
+    if dashboard_message:
+        embed = await create_dashboard_embed()
+        await dashboard_message.edit(embed=embed)
+
+
+async def create_dashboard_embed():
+    """Create an embed with the latest stats."""
+    guild = bot.guilds[0]  # Get the first guild
+    total_members = guild.member_count
+    online_members = sum(
+        1 for m in guild.members if m.status in [discord.Status.online, discord.Status.idle, discord.Status.dnd])
+    total_messages = await count_total_messages()
+    total_voice_time = await count_total_voice_time()
+
+    embed = discord.Embed(title="📊 Server Dashboard", color=discord.Color.blue())
+    embed.add_field(name="👥 Total Members", value=f"`{total_members}`", inline=True)
+    embed.add_field(name="🟢 Online Members", value=f"`{online_members}`", inline=True)
+    embed.add_field(name="💬 Total Messages", value=f"`{total_messages}`", inline=True)
+    embed.add_field(name="🎤 Total Voice Time", value=f"`{total_voice_time}`", inline=True)
+    embed.set_footer(text="Updated every 30 seconds")
+
+    return embed
+
+
+@tasks.loop(seconds=30)
+async def update_server_stats():
+    """Loop to update stats every 30 seconds."""
+    await update_dashboard()
+
 
 bot.run(BOT_TOKEN)
