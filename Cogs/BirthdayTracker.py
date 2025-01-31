@@ -21,6 +21,7 @@ class BirthdayTracker(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.birthdays = load_birthdays()
+        self.check_birthdays.start()  # Start daily check
 
     def save_birthdays(self):
         with open("birthdays.json", "w") as f:
@@ -51,6 +52,9 @@ class BirthdayTracker(commands.Cog):
 
                 await interaction.response.send_message(f"🎉 Your birthday has been saved: {formatted_birthday}",
                                                        ephemeral=True)
+                # Check immediately if today is his birthday
+                await self.cog.check_and_announce_birthday(user_id)
+
             except (ValueError, OverflowError):
                 await interaction.response.send_message("⚠️ Invalid date! Try again (e.g., 2004-12-25).", ephemeral=True)
 
@@ -79,9 +83,26 @@ class BirthdayTracker(commands.Cog):
             if channel:
                 await channel.send(f"❌ Cannot send message to {member} (DMs are closed)")
 
+    async def check_and_announce_birthday(self, user_id):
+        """ Checks if the registered birthday is today and announces it immediately """
+        today = datetime.now(tz).strftime("%m-%d")
+
+        if user_id in self.birthdays:
+            user_birthday = self.birthdays[user_id]["birthday"]
+            if datetime.strptime(user_birthday, "%Y-%m-%d").strftime("%m-%d") == today:
+                print(f"🎉 Announcing immediate birthday for {self.birthdays[user_id]['username']}!")
+
+                # Search ad channel
+                for guild in self.bot.guilds:
+                    channel = discord.utils.get(guild.text_channels, name="⦿announcements⦿")
+                    if channel:
+                        await channel.send(f"🎉 Today is the Birthday of {self.birthdays[user_id]['username']}! 🎂🎈")
+                        return
+                print("⚠️ No valid announcement channel found.")
+
     @tasks.loop(hours=24)
     async def check_birthdays(self):
-        await self.bot.wait_until_ready()  # Ensure bot is ready before running
+        await self.bot.wait_until_ready()  # Make sure the bot is ready before checking
         today = datetime.now(tz).strftime("%m-%d")
 
         print(f"📅 Checking birthdays for today: {today}")
@@ -110,7 +131,8 @@ class BirthdayTracker(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        self.check_birthdays.start()
+        if not self.check_birthdays.is_running():
+            self.check_birthdays.start()  # Make sure the job gets off to a good start
 
 async def setup(bot):
     await bot.add_cog(BirthdayTracker(bot))
