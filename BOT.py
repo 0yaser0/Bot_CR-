@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
-from config import BOT_TOKEN  # Import the token from config.py
+import asyncio
+from config import BOT_TOKEN  # Import the token from .env
 
 # Create a bot instance
 intents = discord.Intents.default()
@@ -43,5 +44,4 @@ async def main():
     await bot.start(BOT_TOKEN)
 
 # Run the bot
-import asyncio
 asyncio.run(main())

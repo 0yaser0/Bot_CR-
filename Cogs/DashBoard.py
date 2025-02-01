@@ -10,7 +10,6 @@ class DashBoard(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print(f'✅ Logged in as {self.bot.user}')
         await self.setup_dashboard()
         self.update_server_stats.start()  # Start updating stats
 
