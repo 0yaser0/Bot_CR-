@@ -1,4 +1,5 @@
 discord.py==2.4.0
+Flask==3.1.0
 python-dotenv==1.0.1
 python_dateutil==2.9.0.post0
 pytz==2024.2

@@ -2,6 +2,9 @@ import discord
 from discord.ext import commands
 import asyncio
 from config import BOT_TOKEN  # Import the token from .env
+from KeepAlive import keep_alive
+
+keep_alive()
 
 # Create a bot instance
 intents = discord.Intents.default()
