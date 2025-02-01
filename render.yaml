@@ -2,5 +2,7 @@ services:
   - type: worker
     name: discord-bot
     plan: free
+    buildCommand: "pip install -r requirements.txt"
     startCommand: "python BOT.py"
     runtime: python
+
