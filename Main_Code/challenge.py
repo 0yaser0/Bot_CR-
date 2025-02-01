@@ -1,72 +1,83 @@
 import discord
 import random
+import asyncio
+import json
+from config import BOT_TOKEN
 from discord.ext import commands, tasks
-from config import BOT_TOKEN  # Ensure you have a config.py file with BOT_TOKEN
 
-# Set up intents
 intents = discord.Intents.default()
 intents.messages = True
-intents.message_content = True  # Required for tracking message replies
+intents.guilds = True
+client = commands.Bot(command_prefix='!', intents=intents)
 
-# Create bot with the prefix '!'
-Bot = commands.Bot(command_prefix='!', intents=intents)
+# Load XP data
+try:
+    with open("xp_data.json", "r") as f:
+        xp = json.load(f)
+except FileNotFoundError:
+    xp = {}
 
 # List of daily challenges
 challenges = [
-    "Write a short story using only emojis 😍!",
-    "Send a meme related to gaming 🎮!",
-    "Compliment another member in the server 🤝!",
-    "Share your favorite motivational quote 📜!",
-    "Post a fun fact about history 🎭!",
-    "Use an ASCII art generator and share the result 🎨!"
+    {"text": "Write a short story using only emojis 😍!", "verify": "emoji"},
+    {"text": "Send a meme related to gaming! 🎮", "verify": "image"},
+    {"text": "Follow member in the server! 🤷‍♀️", "verify": "mention"},
+    {"text": "Share your favorite motivational quote 📜!", "verify": "text"},
+    {"text": "Post a fun fact about history! 🎭", "verify": "text"},
+    {"text": "Use an ASCII art generator and share the result! 🎨", "verify": "ascii"}
 ]
 
-# XP tracking dictionary
-chenell_id = 0
-xp = {}
-challenge_message_id = None  # Store the message ID of the daily challenge
-challenge_channel_id = chenell_id  # Replace with your actual challenge channel ID
+current_challenge = None
 
-# Function to get a random challenge
-def get_daily_challenge():
-    return random.choice(challenges)
 
-# Task to post a daily challenge every 24 hours
 @tasks.loop(hours=24)
 async def post_daily_challenge():
-    global challenge_message_id
-    channel = Bot.get_channel(challenge_channel_id)
+    global current_challenge
+    channel = client.get_channel(1333167210750939266)  # Replace with your channel ID
     if channel:
-        challenge = get_daily_challenge()
-        message = await channel.send(f"🌟 *Daily Challenge:* {challenge}\nReply to this message to complete it!")
-        challenge_message_id = message.id  # Store the message ID
-    else:
-        print("⚠️ Challenge channel not found. Check your channel ID!")
+        current_challenge = random.choice(challenges)
+        await channel.send(f"🌟 **Daily Challenge:** {current_challenge['text']}\nReply here to complete it!")
 
-# Event: When bot is ready
-@Bot.event
+
+@client.event
 async def on_ready():
-    print(f'✅ Logged in as {Bot.user}')
-    await Bot.wait_until_ready()  # Ensure bot is fully ready
-    post_daily_challenge.start()  # Start the loop only after bot is ready
+    print(f'Logged in as {client.user}')
+    post_daily_challenge.start()
 
-# Event: Handling messages
-@Bot.event
+
+@client.event
 async def on_message(message):
-    if message.author == Bot.user:
+    if message.author == client.user:
         return
 
-    await Bot.process_commands(message)  # Ensure bot commands work
+    if message.channel.id == 1333167210750939266 and current_challenge:
+        user = message.author
+        content = message.content.lower()
 
-    global challenge_message_id
+        # Verify challenge completion
+        verified = False
+        if current_challenge["verify"] == "emoji" and any(
+                char in content for char in "😀😁😂🤣😃😄😅😆"):  # Example emoji check
+            verified = True
+        elif current_challenge["verify"] == "image" and message.attachments:
+            verified = True
+        elif current_challenge["verify"] == "mention" and message.mentions:
+            verified = True
+        elif current_challenge["verify"] == "text" and len(content) > 10:
+            verified = True
+        elif current_challenge["verify"] == "ascii" and "|" in content:
+            verified = True
 
-    if message.channel.id == challenge_channel_id and message.reference:
-        if message.reference.message_id == challenge_message_id:
-            user = message.author
-            xp[user.id] = xp.get(user.id, 0) + 10  # Award 10 XP
+        if verified:
+            xp[user.id] = xp.get(str(user.id), 0) + 10  # Award XP
+            with open("xp_data.json", "w") as f:
+                json.dump(xp, f)
+            await message.channel.send(f'🎉 {user.mention} completed the challenge! You earned 10 XP!')
+        else:
             await message.channel.send(
-                f'🎉 {user.mention}, you completed today\'s challenge! You earned *10 XP! You now have **{xp[user.id]} XP*!'
-            )
+                f'❌ {user.mention}, your message doesn’t match the challenge requirement! Try again.')
 
-# Run the bot
-Bot.run(BOT_TOKEN)
+    await client.process_commands(message)
+
+
+client.run(BOT_TOKEN)
