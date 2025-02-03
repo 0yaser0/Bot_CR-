@@ -6,6 +6,7 @@ class Verification(commands.Cog):
         self.bot = bot
         self.TEMP_ROLE_NAME = "⛔ | None"
         self.VERIFIED_ROLE_NAME = "「📗」Verified"
+        self.LEVEL_ROLE_NAME = "🌿 | LVL 01+"
         self.VERIFICATION_CHANNEL = "•📑•-verification"
         self.CHECK_EMOJI = "✅"
         self.CANCEL_EMOJI = "❌"
@@ -45,6 +46,7 @@ class Verification(commands.Cog):
 
         temp_role = discord.utils.get(guild.roles, name=self.TEMP_ROLE_NAME)
         verified_role = discord.utils.get(guild.roles, name=self.VERIFIED_ROLE_NAME)
+        level_role = discord.utils.get(guild.roles, name=self.LEVEL_ROLE_NAME)
         channel = guild.get_channel(payload.channel_id)
 
         if str(payload.emoji) == self.CHECK_EMOJI:
@@ -52,13 +54,14 @@ class Verification(commands.Cog):
             if temp_role:
                 await member.remove_roles(temp_role)
             await member.add_roles(verified_role)
-            await channel.send(f"✅ {member.mention} has been verified!", delete_after=5)
+            await member.add_roles(level_role)
+            await channel.send(f"✅ {member.mention} has been verified!", delete_after=3)
             print(f"Verified {member.name}")
 
         elif str(payload.emoji) == self.CANCEL_EMOJI:
             # Kick member & send rejection message
             await member.kick(reason="Verification rejected")
-            await channel.send(f"❌ {member.mention} has been removed for not verifying.", delete_after=5)
+            await channel.send(f"❌ {member.mention} has been removed for not verifying.", delete_after=3)
             print(f"Kicked {member.name}")
 
         # Delete verification message

@@ -6,6 +6,7 @@ class DeleteMessages(commands.Cog):
         self.bot = bot
 
     @commands.command(name="del")
+    @commands.has_permissions(administrator=True)
     async def delete_messages(self, ctx, number: int):
         # Check if the command is used in a text channel
         if not isinstance(ctx.channel, discord.TextChannel):

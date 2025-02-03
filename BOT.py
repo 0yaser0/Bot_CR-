@@ -1,6 +1,10 @@
 import discord
 from discord.ext import commands
-from config import BOT_TOKEN  # Import the token from config.py
+import asyncio
+from config import BOT_TOKEN  # Import the token from .env
+from KeepAlive import keep_alive
+
+keep_alive()
 
 # Create a bot instance
 intents = discord.Intents.default()
@@ -28,6 +32,7 @@ async def ping(ctx):
 
 # Load the welcome cog
 async def load_extensions():
+    await bot.load_extension('Cogs.Rules')
     await bot.load_extension('Cogs.Welcome')
     await bot.load_extension('Cogs.GoodBye')
     await bot.load_extension('Cogs.VoiceTimeState')
@@ -43,5 +48,4 @@ async def main():
     await bot.start(BOT_TOKEN)
 
 # Run the bot
-import asyncio
 asyncio.run(main())
