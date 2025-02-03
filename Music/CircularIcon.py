@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QWidget
+from PyQt5.QtWidgets import QWidget, QApplication
 from PyQt5.QtCore import Qt, QPoint
 from PyQt5.QtGui import QPixmap, QPainter, QRegion, QColor
 from Music.BubbleWindow import BubbleWindow
@@ -9,6 +9,7 @@ class CircularIconWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
+        QApplication.instance().installEventFilter(self)
 
     def initUI(self):
         """Initialize the circular FAB window."""
@@ -102,7 +103,7 @@ class CircularIconWindow(QWidget):
 
     def setupBubbleWindow(self):
         """Set up and position the bubble window."""
-        self.bubble_window.setWindowFlags(Qt.FramelessWindowHint)
+        self.bubble_window.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.bubble_window.setAttribute(Qt.WA_TranslucentBackground)
         self.positionBubbleWindow()
         self.bubble_window.show()
@@ -124,3 +125,7 @@ class CircularIconWindow(QWidget):
             self.bubble_window.close()
             self.bubble_window = None
         self.bubble_shown = False
+
+    def eventFilter(self, obj, event):
+        """Ensure FAB and bubble stay on top even when clicking outside."""
+        return super().eventFilter(obj, event)
