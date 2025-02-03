@@ -93,11 +93,12 @@ class DashBoard(commands.Cog):
         total_messages = await self.count_total_messages()
         total_voice_time = await self.count_total_voice_time()
 
-        embed = discord.Embed(title="📊 Server Dashboard", color=discord.Color.blue())
-        embed.add_field(name="👥 Total Members", value=f"`{total_members}`", inline=True)
-        embed.add_field(name="🟢 Online Members", value=f"`{online_members}`", inline=True)
-        embed.add_field(name="💬 Total Messages", value=f"`{total_messages}`", inline=True)
-        embed.add_field(name="🎤 Total Voice Time", value=f"`{total_voice_time}`", inline=True)
+        embed = discord.Embed(title="📊  Server Dashboard", color=discord.Color.blue())
+        embed.add_field(
+            name="",
+            value=f"```🟢  Online Members   : {online_members}\n👥  Total Members    : {total_members}\n💬  Total Messages   : {total_messages}\n🔊  Total Voice Time : {total_voice_time}\n```",
+            inline=True
+        )
         embed.set_footer(text="Updated every 30 seconds")
 
         return embed
